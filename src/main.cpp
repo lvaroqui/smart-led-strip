@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <WiFiNINA.h>
 
 #include "secret.h"
@@ -11,12 +12,6 @@
 WiFiServer server(80);
 
 void setup() {
-    //Initialize serial and wait for port to open:
-    Serial.begin(9600);
-    while (!Serial) {
-        ;  // wait for serial port to connect. Needed for native USB port only
-    }
-
     // check for the WiFi module:
     if (WiFi.status() == WL_NO_MODULE) {
         Serial.println("Communication with WiFi module failed!");
@@ -49,7 +44,29 @@ void setup() {
     Serial.println(ip);
 
     server.begin();
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
 }
+
+struct Color {
+    uint8_t r = 0, g = 0, b = 0, w = 0;
+
+    void apply() {
+        analogWrite(RED, r);
+        analogWrite(GREEN, g);
+        analogWrite(BLUE, b);
+        analogWrite(WHITE, w);
+    }
+};
+
+Color current;
+
+enum class HttpMethod {
+    GET,
+    POST,
+    UNKNOWN
+};
 
 void loop() {
     WiFiClient client = server.available();
@@ -57,28 +74,62 @@ void loop() {
     if (client) {
         Serial.println("Client available");
 
-        char buffer[256];
-        int index = 0;
-        while (client.connected()) {
-            if (client.available()) {
-                char c = client.read();
-                if (c == '\n') {
-                    buffer[index] = '\0';
+        size_t lineNo = 0;
+        HttpMethod method = HttpMethod::UNKNOWN;
 
-                    int val = atoi(buffer);
+        // Parse Headers
+        while (client.available()) {
+            String line = client.readStringUntil('\r');
+            client.read();  // Discard \n
+            Serial.println(line);
 
-                    analogWrite(WHITE, val);
-
-                    // reset buffer index
-                    index = 0;
-                } else {
-                    // append char at end of buffer
-                    buffer[index] = c;
-                    index++;
+            if (lineNo == 0) {
+                if (line.startsWith("GET")) {
+                    method = HttpMethod::GET;
+                } else if (line.startsWith("POST")) {
+                    method = HttpMethod::POST;
                 }
             }
+
+            if (line.length() == 0) {
+                // End of headers
+                break;
+            }
         }
-        Serial.println("Client disconnected");
+
+        if (method == HttpMethod::GET) {
+            DynamicJsonDocument doc(1024);
+
+            doc["r"] = current.r;
+            doc["g"] = current.g;
+            doc["b"] = current.b;
+            doc["w"] = current.w;
+
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: application/json");
+            client.println("Connection: close");
+            client.println();
+            serializeJson(doc, client);
+        } else if (method == HttpMethod::POST) {
+            DynamicJsonDocument doc(1024);
+            deserializeJson(doc, client);
+
+            current.r = doc["r"];
+            current.g = doc["g"];
+            current.b = doc["b"];
+            current.w = doc["w"];
+
+            current.apply();
+
+            client.println("HTTP/1.1 200 OK");
+            client.println("Connection: close");
+            client.println();
+        } else {
+            client.println("HTTP/1.1 404 Not Found");
+            client.println("Connection: close");
+            client.println();
+        }
+
         client.stop();
     }
 }
