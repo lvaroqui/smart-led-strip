@@ -108,4 +108,4 @@ I desisgned a small enclosing box for the electronics using [FreeCad](https://ww
 
 ## Home Assistant
 
-I wrote a basic [Home Assistant](https://www.home-assistant.io/) plugin to control the Led Strip from a friendly user interface. It can be found in [echow_led_strip](echow_led_strip). To enable it, place the folder in the `custom_components` folder of your Home Assistant installation.
+I wrote a basic [Home Assistant](https://www.home-assistant.io/) plugin to control the Led Strip from a friendly user interface. It can be found in [echow_led_strip](custom_components/echow_led_strip). To enable it, place the folder in the `custom_components` folder of your Home Assistant installation. You can also add this repository as a [HACS](https://hacs.xyz/) [custom repository](https://hacs.xyz/docs/faq/custom_repositories/).
