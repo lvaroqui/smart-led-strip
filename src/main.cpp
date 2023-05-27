@@ -179,6 +179,8 @@ void loop() {
             const char* method = req["method"];
             auto param = req["param"];
 
+            bool notFound = false;
+
             if (strcmp(method, "set_rgbw") == 0) {
                 if (param["time"]) {
                     state.transitionTime = param["time"].as<unsigned long>();
@@ -204,16 +206,20 @@ void loop() {
             } else if (strcmp(method, "get_info") == 0) {
                 res["mac"] = MAC_ADDRESS;
             } else {
+                notFound = true;
+            }
+
+            if (notFound) {
                 client.println("HTTP/1.1 404 Not Found");
                 client.println("Connection: close");
                 client.println();
-            }
-
-            client.println("HTTP/1.1 200 OK");
-            client.println("Connection: close");
-            client.println();
-            if (!res.isNull()) {
-                serializeJson(res, client);
+            } else {
+                client.println("HTTP/1.1 200 OK");
+                client.println("Connection: close");
+                client.println();
+                if (!res.isNull()) {
+                    serializeJson(res, client);
+                }
             }
         } else {
             client.println("HTTP/1.1 404 Not Found");
